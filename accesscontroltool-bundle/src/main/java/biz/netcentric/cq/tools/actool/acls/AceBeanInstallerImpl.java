@@ -27,9 +27,11 @@ import javax.jcr.security.AccessControlException;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
 
+import biz.netcentric.cq.tools.actool.honorservice.HonorService;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
@@ -53,27 +55,22 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
 
     private static final Logger LOG = LoggerFactory.getLogger(AceBeanInstallerImpl.class);
 
+    @Reference
+    HonorService honorService;
 
     @Override
     public void installPathBasedACEs(
             final Map<String, Set<AceBean>> pathBasedAceMapFromConfig,
             final Session session,
-            final AcInstallationHistoryPojo history, Set<String> authorizablesToRemoveAcesFor,
-            boolean intermediateSaves) throws Exception {
+            final AcInstallationHistoryPojo history) throws Exception {
 
         final Set<String> paths = pathBasedAceMapFromConfig.keySet();
 
+        LOG.debug("Paths in merged config = {}", paths);
 
         final String msg = "Found " + paths.size() + "  paths in config";
         LOG.debug(msg);
         history.addVerboseMessage(msg);
-        LOG.trace("Paths with ACEs: {}", paths);
-
-        if (intermediateSaves) {
-            final String messageSave = "Will save ACL for each path to session due to configuration option intermediateSaves=true - rollback functionality is disabled.";
-            LOG.info(messageSave);
-            history.addMessage(messageSave);
-        }
 
         // loop through all nodes from config
         for (final String path : paths) {
@@ -97,28 +94,29 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
                     new AcePermissionComparator());
             orderedAceBeanSetFromConfig.addAll(aceBeanSetFromConfig);
 
-            // Remove all config contained auhtorizables from ACL of this path
-            int countRemoved = AccessControlUtils.deleteAllEntriesForAuthorizableFromACL(session,
-                    path, authorizablesToRemoveAcesFor.toArray(new String[authorizablesToRemoveAcesFor.size()]));
-            final String message = "Deleted " + countRemoved + " ACEs for configured authorizables from path " + path;
-            LOG.debug(message);
-            history.addVerboseMessage(message);
+            // remove ACL of that path from ACLs from repo so that after the
+            // loop has ended only paths are left which are not contained in
+            // current config
+            for (final AceBean bean : orderedAceBeanSetFromConfig) {
+                if (!honorService.checkHonorablesPathGroup(path, bean.getPrincipalName())) {
+                    AccessControlUtils.deleteAllEntriesForAuthorizableFromACL(session,
+                            path, bean.getPrincipalName());
 
-            writeAcBeansToRepository(session, history, orderedAceBeanSetFromConfig);
-
-            if (intermediateSaves) {
-                final String messageSave = "Saved session for path " + path;
-                LOG.debug(messageSave);
-                history.addVerboseMessage(messageSave);
-                session.save();
+                    final String message = "deleted all ACEs of authorizable "
+                            + bean.getPrincipalName()
+                            + " from ACL of path: " + path;
+                    LOG.debug(message);
+                    history.addVerboseMessage(message);
+                }
             }
+            writeAcBeansToRepository(session, history, orderedAceBeanSetFromConfig);
         }
     }
 
     private void writeAcBeansToRepository(final Session session,
             final AcInstallationHistoryPojo history,
             final Set<AceBean> aceBeanSetFromConfig)
-                    throws RepositoryException, UnsupportedRepositoryOperationException, NoSuchMethodException, SecurityException {
+            throws RepositoryException, UnsupportedRepositoryOperationException, NoSuchMethodException, SecurityException {
 
         // reset ACL in repo with permissions from merged ACL
         for (final AceBean bean : aceBeanSetFromConfig) {
@@ -145,7 +143,8 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
         }
     }
 
-    /** Installs the CQ actions in the repository.
+    /**
+     * Installs the CQ actions in the repository.
      *
      * @param aceBean
      * @param principal
@@ -153,10 +152,11 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
      * @param session
      * @param acMgr
      * @return either the same acl as given in the parameter {@code acl} if no actions have been installed otherwise the new
-     *         AccessControlList (comprising the entres being installed for the actions).
+     * AccessControlList (comprising the entres being installed for the actions).
      * @throws RepositoryException
      * @throws SecurityException
-     * @throws NoSuchMethodException */
+     * @throws NoSuchMethodException
+     */
     private JackrabbitAccessControlList installActions(AceBean aceBean, Principal principal, JackrabbitAccessControlList acl,
             Session session, AccessControlManager acMgr, AcInstallationHistoryPojo history) throws RepositoryException, SecurityException {
         final Map<String, Boolean> actionMap = aceBean.getActionMap();
@@ -168,7 +168,7 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
         final Collection<String> inheritedAllows = cqActions.getAllowedActions(
                 aceBean.getJcrPath(), Collections.singleton(principal));
         // this does always install new entries
-        cqActions.installActions(aceBean.getJcrPath(), principal, actionMap,
+       cqActions.installActions(aceBean.getJcrPath(), principal, actionMap,
                 inheritedAllows);
 
         // since the aclist has been modified, retrieve it again
@@ -184,7 +184,7 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
 
     private void addAdditionalRestriction(AceBean aceBean, JackrabbitAccessControlList oldAcl, JackrabbitAccessControlList newAcl,
             RestrictionsHolder restrictions)
-                    throws RepositoryException, AccessControlException, UnsupportedRepositoryOperationException, SecurityException {
+            throws RepositoryException, AccessControlException, UnsupportedRepositoryOperationException, SecurityException {
         final List<AccessControlEntry> changedAces = getModifiedAces(oldAcl, newAcl);
         if (!changedAces.isEmpty()) {
             for (final AccessControlEntry newAce : changedAces) {
@@ -210,7 +210,7 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
 
     private void addRestrictionIfNotSet(JackrabbitAccessControlList newAcl, RestrictionsHolder restrictions,
             AccessControlEntry newAce)
-                    throws RepositoryException, AccessControlException, UnsupportedRepositoryOperationException, SecurityException {
+            throws RepositoryException, AccessControlException, UnsupportedRepositoryOperationException, SecurityException {
         if (!(newAce instanceof JackrabbitAccessControlEntry)) {
             throw new IllegalStateException(
                     "Can not deal with non JackrabbitAccessControlEntrys, but entry is of type " + newAce.getClass().getName());
@@ -242,7 +242,7 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
             final RestrictionsHolder restrictions = getRestrictions(aceBean, session, acl);
             if (!restrictions.isEmpty()) {
                 acl.addEntry(principal, privileges
-                        .toArray(new Privilege[privileges.size()]), aceBean.isAllow(),
+                                .toArray(new Privilege[privileges.size()]), aceBean.isAllow(),
                         restrictions.getSingleValuedRestrictionsMap(), restrictions.getMultiValuedRestrictionsMap());
             } else {
                 acl.addEntry(principal, privileges
@@ -253,10 +253,12 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
         return false;
     }
 
-    /** Installs the AccessControlEntry being represented by this bean in the repository
+    /**
+     * Installs the AccessControlEntry being represented by this bean in the repository
      *
      * @throws SecurityException
-     * @throws NoSuchMethodException */
+     * @throws NoSuchMethodException
+     */
     private void install(AceBean aceBean, final Session session, Principal principal,
             AcInstallationHistoryPojo history) throws RepositoryException, SecurityException {
 
@@ -276,7 +278,8 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
         }
 
         // first install actions
-        final JackrabbitAccessControlList newAcl = installActions(aceBean, principal, acl, session, acMgr, history);
+       final JackrabbitAccessControlList newAcl = installActions(aceBean, principal, acl, session, acMgr, history);
+
         if (acl != newAcl) {
             history.addVerboseMessage("added action(s) for path: " + aceBean.getJcrPath()
                     + ", principal: " + principal.getName() + ", actions: "
@@ -284,7 +287,6 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
             removeRedundantPrivileges(aceBean, session);
             acl = newAcl;
         }
-
         // then install (remaining) privileges
         if (installPrivileges(aceBean, principal, acl, session, acMgr)) {
             history.addVerboseMessage("added privilege(s) for path: " + aceBean.getJcrPath()
@@ -299,10 +301,12 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
         aceBean.setPrivilegesString(StringUtils.join(cleanedPrivileges, ","));
     }
 
-    /** Modifies the privileges so that privileges already covered by actions are removed. This is only a best effort operation as one
+    /**
+     * Modifies the privileges so that privileges already covered by actions are removed. This is only a best effort operation as one
      * action can lead to privileges on multiple nodes.
      *
-     * @throws RepositoryException */
+     * @throws RepositoryException
+     */
     private static Set<String> removeRedundantPrivileges(Session session, String[] privileges, String[] actions)
             throws RepositoryException {
         final CqActions cqActions = new CqActions(session);
@@ -324,16 +328,18 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
         return cleanedPrivileges;
     }
 
-    /** Creates a RestrictionHolder object containing 2 restriction maps being used in
+    /**
+     * Creates a RestrictionHolder object containing 2 restriction maps being used in
      * {@link JackrabbitAccessControlList#addEntry(Principal, Privilege[], boolean, Map, Map)} out of the set actions on this bean.
      *
      * @param session the session
-     * @param acl the access control list for which this restriction map should be used
+     * @param acl     the access control list for which this restriction map should be used
      * @return RestrictionMapsHolder containing 2 maps with restriction names as keys and restriction values as values
-     *         (singleValuedRestrictionsMap) and values[] (multiValuedRestrictionsMap).
+     * (singleValuedRestrictionsMap) and values[] (multiValuedRestrictionsMap).
      * @throws ValueFormatException
      * @throws UnsupportedRepositoryOperationException
-     * @throws RepositoryException */
+     * @throws RepositoryException
+     */
     private RestrictionsHolder getRestrictions(AceBean aceBean, Session session, JackrabbitAccessControlList acl)
             throws ValueFormatException, UnsupportedRepositoryOperationException, RepositoryException {
 
@@ -356,11 +362,9 @@ public class AceBeanInstallerImpl implements AceBeanInstaller {
         return restrictionsHolder;
     }
 
-
-
     private void extendExistingAceWithRestrictions(JackrabbitAccessControlList accessControlList,
             JackrabbitAccessControlEntry accessControlEntry, RestrictionsHolder restrictions)
-                    throws SecurityException, UnsupportedRepositoryOperationException, RepositoryException {
+            throws SecurityException, UnsupportedRepositoryOperationException, RepositoryException {
 
         // 1. add new entry
         if (!accessControlList.addEntry(accessControlEntry.getPrincipal(), accessControlEntry.getPrivileges(), accessControlEntry.isAllow(),

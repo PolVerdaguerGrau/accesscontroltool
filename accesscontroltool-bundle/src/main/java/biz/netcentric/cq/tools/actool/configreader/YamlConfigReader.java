@@ -58,6 +58,7 @@ public class YamlConfigReader implements ConfigReader {
     private static final String ACE_CONFIG_INITIAL_CONTENT = "initialContent";
 
     private static final String GROUP_CONFIG_PROPERTY_MEMBER_OF = "isMemberOf";
+    private static final String GROUP_CONFIG_PROPERTY_HONORS = "honorsPrivilege";
     private static final String GROUP_CONFIG_PROPERTY_MEMBER_OF_LEGACY = "memberOf";
     private static final String GROUP_CONFIG_PROPERTY_MEMBERS = "members";
     private static final String GROUP_CONFIG_PROPERTY_PATH = "path";
@@ -354,6 +355,9 @@ public class YamlConfigReader implements ConfigReader {
 
         authorizableConfigBean.setMemberOfString(getMapValueAsString(
                 currentPrincipalDataMap, GROUP_CONFIG_PROPERTY_MEMBER_OF));
+        authorizableConfigBean.setHonorsString(getMapValueAsString(
+                currentPrincipalDataMap, GROUP_CONFIG_PROPERTY_HONORS));
+
         // read also memberOf property from legacy scripts
         if (!StringUtils.isEmpty(getMapValueAsString(currentPrincipalDataMap, GROUP_CONFIG_PROPERTY_MEMBER_OF_LEGACY))) {
             authorizableConfigBean.setMemberOfString(getMapValueAsString(
@@ -363,6 +367,7 @@ public class YamlConfigReader implements ConfigReader {
                 currentPrincipalDataMap, GROUP_CONFIG_PROPERTY_MEMBERS));
         authorizableConfigBean.setPath(getMapValueAsString(
                 currentPrincipalDataMap, GROUP_CONFIG_PROPERTY_PATH));
+
 
         authorizableConfigBean.setMigrateFrom(getMapValueAsString(currentPrincipalDataMap,
                 GROUP_CONFIG_PROPERTY_MIGRATE_FROM));

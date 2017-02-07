@@ -28,7 +28,7 @@ public interface ConfigurationMerger {
      * @return The AcConfiguration
      * @throws RepositoryException in case some repository error has occurred
      * @throws AcConfigBeanValidationException in case the given configuration is invalid */
-    public abstract AcConfiguration getMergedConfigurations(
+     AcConfiguration getMergedConfigurations(
             final Map<String, String> newestConfigurations,
             final AcInstallationHistoryPojo history,
             final ConfigReader configReader) throws RepositoryException,

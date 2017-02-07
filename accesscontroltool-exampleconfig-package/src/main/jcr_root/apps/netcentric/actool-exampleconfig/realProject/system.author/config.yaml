@@ -44,11 +44,18 @@
          memberOf:
          path: f
 
+    - fragment-new:
+
+       - name:
+         memberOf:
+         path: f
+
     - fragment-tools:
 
        - name: 
-         memberOf:
+         memberOf: mine
          path: f
+         honorsPrivilege: /etc/blueprints
 
     - fragment-workflows:
 
@@ -747,7 +754,8 @@
          permission: allow
          actions: read
          privileges: 
-         repGlob: 
+         repGlob:
+         honorsExistingPrivlegesInPath: true
 
        - path: /etc/blueprints
          permission: allow

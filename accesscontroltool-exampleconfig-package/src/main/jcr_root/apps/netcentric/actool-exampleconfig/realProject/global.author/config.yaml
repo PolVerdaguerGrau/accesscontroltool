@@ -13,6 +13,7 @@
        - name: 
          memberOf: fragment-contentmanager
          path: global
+         honorsPrivilege: /content/research,/content/products
 
     - techsupport:
 

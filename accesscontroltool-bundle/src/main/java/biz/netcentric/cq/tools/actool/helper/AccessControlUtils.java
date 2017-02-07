@@ -26,7 +26,7 @@ import javax.jcr.security.AccessControlPolicy;
 import javax.jcr.security.AccessControlPolicyIterator;
 import javax.jcr.security.Privilege;
 
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
@@ -230,36 +230,35 @@ public class AccessControlUtils {
 
     /** @param session admin session
      * @param path valid node path in CRX
-     * @param authorizableIds ids of authorizables to be deleted from ACL of node specified by path
-     * @return count ACEs that were removed */
-    public static int deleteAllEntriesForAuthorizableFromACL(final Session session,
-            final String path, String[] authorizableIds)
+     * @param authorizableID ID of authorizable to be deleted from ACL of node specified by path */
+    public static void deleteAllEntriesForAuthorizableFromACL(final Session session,
+            final String path, String authorizableID)
                     throws UnsupportedRepositoryOperationException, RepositoryException {
-        final AccessControlManager accessControlManager = session
-                .getAccessControlManager();
-
-        final JackrabbitAccessControlList acl = AccessControlUtils.getModifiableAcl(
-                accessControlManager, path);
-        if (acl == null) {
-            // do nothing, if there is no content node at the given path
-            return 0;
+        if(!authorizableID.contains("AEM_AUTHORING_SA_APPROVER")) {
+            int a = 0;
         }
-        // get ACEs of the node
-        final AccessControlEntry[] aces = acl.getAccessControlEntries();
+            final AccessControlManager accessControlManager = session
+                    .getAccessControlManager();
 
-        int countRemoved = 0;
-        // loop thorough ACEs and find the one of the given principal
-        for (final AccessControlEntry ace : aces) {
-            final JackrabbitAccessControlEntry jace = (JackrabbitAccessControlEntry) ace;
-
-            if (ArrayUtils.contains(authorizableIds, jace.getPrincipal().getName())) {
-                acl.removeAccessControlEntry(jace);
-                // bind new policy
-                accessControlManager.setPolicy(path, acl);
-                countRemoved++;
+            final JackrabbitAccessControlList acl = AccessControlUtils.getModifiableAcl(
+                    accessControlManager, path);
+            if (acl == null) {
+                // do nothing, if there is no content node at the given path
+                return;
             }
-        }
-        return countRemoved;
+            // get ACEs of the node
+            final AccessControlEntry[] aces = acl.getAccessControlEntries();
+
+            // loop thorough ACEs and find the one of the given principal
+            for (final AccessControlEntry ace : aces) {
+                final JackrabbitAccessControlEntry jace = (JackrabbitAccessControlEntry) ace;
+                if (StringUtils.equals(jace.getPrincipal().getName(),
+                        authorizableID)) {
+                    acl.removeAccessControlEntry(jace);
+                    // bind new policy
+                    accessControlManager.setPolicy(path, acl);
+                }
+            }
     }
 
     /** Retrieves JackrabbitAccessControlList for path.

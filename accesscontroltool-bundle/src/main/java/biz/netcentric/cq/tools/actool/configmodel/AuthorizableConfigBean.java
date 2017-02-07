@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.commons.io.output.StringBuilderWriter;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 
@@ -27,6 +28,9 @@ public class AuthorizableConfigBean implements AcDumpElement {
 
     private String[] memberOf;
     private String memberOfStringFromConfig;
+
+//old    private String[] honors;
+    private String honorsStringFromConfig;
 
     private String[] members;
     private String membersStringFromConfig;
@@ -103,6 +107,8 @@ public class AuthorizableConfigBean implements AcDumpElement {
         memberOfStringFromConfig = memberOfString;
     }
 
+    public void setHonorsString(final String honorsString) { honorsStringFromConfig = honorsString;}
+
     public void setMembersString(final String membersString) {
         membersStringFromConfig = membersString;
     }
@@ -127,6 +133,8 @@ public class AuthorizableConfigBean implements AcDumpElement {
         return memberOf;
     }
 
+//old    public String[] getHonors() { return honors; }
+
     public boolean isMemberOfOtherGroups() {
         return memberOf != null;
     }
@@ -134,6 +142,7 @@ public class AuthorizableConfigBean implements AcDumpElement {
     public String getMemberOfStringFromConfig() {
         return memberOfStringFromConfig;
     }
+    public String getHonorsStringFromConfig() { return honorsStringFromConfig; }
 
     public String getMemberOfString() {
         if (memberOf == null) {
@@ -148,9 +157,23 @@ public class AuthorizableConfigBean implements AcDumpElement {
         return StringUtils.chop(memberOfString.toString());
     }
 
+/*  old  public String getHonorsString() {
+        if (honors == null) {
+            return "";
+        }
+
+        final StringBuilder honorsString = new StringBuilder();
+
+        for (final String honorPath : honors) {
+            honorsString.append(honorPath).append(",");
+        }
+        return StringUtils.chomp(honorsString.toString());
+    }
+*/
     public void setMemberOf(final String[] memberOf) {
         this.memberOf = memberOf;
     }
+// old   public void setHonors(final String[] honors) {this.honors = honors; }
 
     public void setMemberOf(final List<String> memberOf) {
         if ((memberOf != null) && !memberOf.isEmpty()) {
@@ -158,6 +181,12 @@ public class AuthorizableConfigBean implements AcDumpElement {
         }
     }
 
+ /*old   public void setHonors(final List<String> honors) {
+        if ((honors != null) && !honors.isEmpty()) {
+            this.honors = honors.toArray(new String[honors.size()]);
+        }
+    }
+*/
     public void addMemberOf(final String member) {
         if (memberOf == null) {
             memberOf = new String[] { member };
@@ -170,6 +199,19 @@ public class AuthorizableConfigBean implements AcDumpElement {
             memberOf = memberList.toArray(new String[memberList.size()]);
         }
     }
+
+ /*old   public void addHonors(final String honor) {
+        if(honors == null) {
+            honors = new String[] { honor };
+            return;
+        }
+        final List<String> honorList = new ArrayList<String>();
+        honorList.addAll(Arrays.asList(honors));
+        if (!honorList.contains(honor)) {
+            honorList.add(honor);
+            honors = honorList.toArray(new String[honorList.size()]);
+        }
+    }*/
 
     public String getMembersStringFromConfig() {
         return membersStringFromConfig;
@@ -242,4 +284,5 @@ public class AuthorizableConfigBean implements AcDumpElement {
     public void setAssertedExceptionString(final String assertedException) {
         assertedExceptionString = assertedException;
     }
+
 }

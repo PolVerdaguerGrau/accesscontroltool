@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import javax.jcr.Session;
+
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
@@ -38,15 +40,14 @@ public class AcToolInstallHookServiceImpl implements AcToolInstallHookService {
     private ConfigFilesRetriever configFilesRetriever;
 
     @Override
-    public AcInstallationHistoryPojo installYamlFilesFromPackage(Archive archive)
+    public AcInstallationHistoryPojo installYamlFilesFromPackage(Archive archive, Session session)
             throws Exception {
         AcInstallationHistoryPojo history = new AcInstallationHistoryPojo();
         Set<AuthorizableInstallationHistory> authorizableInstallationHistorySet = new LinkedHashSet<AuthorizableInstallationHistory>();
 
         Map<String, String> configs = configFilesRetriever.getConfigFileContentFromPackage(archive);
         history.setCrxPackageName(getArchiveName(archive));
-        String[] restrictedToPaths = null; // never use path restriction for hook usage for now
-        aceService.installConfigurationFiles(history, configs, authorizableInstallationHistorySet, restrictedToPaths);
+        aceService.installConfigurationFiles(session, history, configs, authorizableInstallationHistorySet);
 
         return history;
     }

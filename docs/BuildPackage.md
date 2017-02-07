@@ -29,6 +29,6 @@ The `oakindex-package` contains an optimized Oak index to cover all queries bein
 To use the package, run all commands with profile `oakindex`, e.g.
  ```
 mvn clean install -Poakindex
- ```
+ ``` 
 
 Output will be accesscontroltool-oakindex-package/target/accesscontroltool-oakindex-package-<VERSION>.zip
